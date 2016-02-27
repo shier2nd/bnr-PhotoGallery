@@ -3,13 +3,19 @@ package com.bignerdranch.android.photogallery;
 import android.net.Uri;
 import android.util.Log;
 
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
+import com.google.gson.FieldNamingStrategy;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonDeserializationContext;
+import com.google.gson.JsonDeserializer;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParseException;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Field;
+import java.lang.reflect.Type;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
@@ -67,18 +73,23 @@ public class FlickrFetchr {
                     .build().toString();
             String jsonString = getUrlString(url);
             Log.i(TAG, "Received JSON: " + jsonString);
-            JSONObject jsonBody = new JSONObject(jsonString);
-            parseItems(items, jsonBody);
-        } catch (JSONException je) {
+            /*JSONObject jsonBody = new JSONObject(jsonString);
+            parseItems(items, jsonBody);*/
+
+            /*
+            challenge
+             */
+            parseItems(items, jsonString);
+        } /*catch (JSONException je) {
             Log.e(TAG, "Failed to parse JSON: " + je);
-        }catch (IOException ioe) {
+        }*/ catch (IOException ioe) {
             Log.e(TAG, "Failed to fetch items" + ioe);
         }
 
         return items;
     }
 
-    private void parseItems(List<GalleryItem> items, JSONObject jsonBody)
+    /*private void parseItems(List<GalleryItem> items, JSONObject jsonBody)
         throws IOException, JSONException {
 
         JSONObject photosJsonObject = jsonBody.getJSONObject("photos");
@@ -97,6 +108,59 @@ public class FlickrFetchr {
 
             item.setUrl(photoJsonObject.getString("url_s"));
             items.add(item);
+        }
+    }*/
+
+    /*
+    Challenge
+     */
+    private void parseItems(List<GalleryItem> items, String jsonString) {
+        Gson gson = new GsonBuilder()
+                .registerTypeAdapter(GalleryItem[].class, new ChallengeDeserializer())
+                .create();
+        GalleryItem[] photosList = gson.fromJson(jsonString, GalleryItem[].class);
+
+        // scan photoList
+        for (GalleryItem item : photosList) {
+            if (item.getUrl() != null) {
+                items.add(item);
+            }
+        }
+    }
+
+    private class ChallengeDeserializer implements JsonDeserializer<GalleryItem[]> {
+
+        @Override
+        public GalleryItem[] deserialize(JsonElement je, Type type, JsonDeserializationContext jdc)
+                throws JsonParseException
+        {
+            // Get the "photos" element from the parsed JSON
+            JsonElement photos = je.getAsJsonObject().get("photos");
+            JsonElement photoArray = photos.getAsJsonObject().get("photo");
+
+            // Deserialize it. You use a new instance of Gson to avoid infinite recursion
+            // to this deserializer
+            Gson gson = new GsonBuilder()
+                    .setFieldNamingStrategy(new ChallengeFieldNamingStrategy())
+                    .create();
+            return gson.fromJson(photoArray, GalleryItem[].class);
+        }
+    }
+
+    private class ChallengeFieldNamingStrategy implements FieldNamingStrategy {
+
+        @Override
+        public String translateName(Field f) {
+            switch (f.getName()) {
+                case "mId":
+                    return "id";
+                case "mCaption":
+                    return "title";
+                case "mUrl":
+                    return "url_s";
+                default:
+                    return f.getName();
+            }
         }
     }
 }
