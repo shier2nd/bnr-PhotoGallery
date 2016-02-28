@@ -6,7 +6,6 @@ import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -24,7 +23,6 @@ public class PhotoGalleryFragment extends Fragment {
 
     private RecyclerView mPhotoRecyclerView;
     private List<GalleryItem> mItems = new ArrayList<>();
-    private int mLastFetchedPage = 1;
 
     public static PhotoGalleryFragment newInstance() {
         return new PhotoGalleryFragment();
@@ -34,7 +32,7 @@ public class PhotoGalleryFragment extends Fragment {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setRetainInstance(true);
-        new FetchItemsTask().execute(0);
+        new FetchItemsTask().execute();
     }
 
     @Nullable
@@ -44,25 +42,6 @@ public class PhotoGalleryFragment extends Fragment {
 
         mPhotoRecyclerView = (RecyclerView) v.findViewById(R.id.fragment_photo_gallery_recycler_view);
         mPhotoRecyclerView.setLayoutManager(new GridLayoutManager(getActivity(), 3));
-
-        mPhotoRecyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
-            @Override
-            public void onScrollStateChanged(RecyclerView recyclerView, int newState) {
-                PhotoAdapter adapter = (PhotoAdapter) recyclerView.getAdapter(); // Must be cast to PhotoAdapter, as I use a non-inherited method
-                int lastPosition = adapter.getLastBoundPosition();
-
-                GridLayoutManager layoutManager = (GridLayoutManager) recyclerView.getLayoutManager();
-                int loadBufferPosition = 1;
-                if (lastPosition >= adapter.getItemCount() - layoutManager.getSpanCount() - loadBufferPosition) {
-                    new FetchItemsTask().execute(lastPosition + 1);
-                }
-            }
-
-            @Override
-            public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
-                super.onScrolled(recyclerView, dx, dy);
-            }
-        });
 
         setupAdapter();
 
@@ -92,14 +71,9 @@ public class PhotoGalleryFragment extends Fragment {
     private class PhotoAdapter extends RecyclerView.Adapter<PhotoHolder> {
 
         private List<GalleryItem> mGalleryItems;
-        private int mLastBoundPosition;
 
         public PhotoAdapter(List<GalleryItem> galleryItems) {
             mGalleryItems = galleryItems;
-        }
-
-        public int getLastBoundPosition() {
-            return mLastBoundPosition;
         }
 
         @Override
@@ -112,8 +86,6 @@ public class PhotoGalleryFragment extends Fragment {
         public void onBindViewHolder(PhotoHolder holder, int position) {
             GalleryItem galleryItem = mGalleryItems.get(position);
             holder.bindGalleryItem(galleryItem);
-            mLastBoundPosition = position;
-            Log.i(TAG, "Last bound position is " + mLastBoundPosition);
         }
 
         @Override
@@ -122,22 +94,16 @@ public class PhotoGalleryFragment extends Fragment {
         }
     }
 
-    private class FetchItemsTask extends AsyncTask<Integer, Void, List<GalleryItem>> {
+    private class FetchItemsTask extends AsyncTask<Void,Void,List<GalleryItem>> {
         @Override
-        protected List<GalleryItem> doInBackground(Integer... params) {
-            return new FlickrFetchr().fetchItems(params[0]);
+        protected List<GalleryItem> doInBackground(Void... params) {
+            return new FlickrFetchr().fetchItems();
         }
 
         @Override
         protected void onPostExecute(List<GalleryItem> items) {
-            if (mLastFetchedPage > 1) {
-                mItems.addAll(items);
-                mPhotoRecyclerView.getAdapter().notifyDataSetChanged();
-            } else {
-                mItems = items;
-                setupAdapter();
-            }
-            mLastFetchedPage++;
+            mItems = items;
+            setupAdapter();
         }
     }
 }
