@@ -6,10 +6,12 @@ import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -23,6 +25,8 @@ public class PhotoGalleryFragment extends Fragment {
 
     private RecyclerView mPhotoRecyclerView;
     private List<GalleryItem> mItems = new ArrayList<>();
+    private boolean mBackgroundIsLoading;
+    private int mLastFetchedPage;
 
     public static PhotoGalleryFragment newInstance() {
         return new PhotoGalleryFragment();
@@ -32,7 +36,8 @@ public class PhotoGalleryFragment extends Fragment {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setRetainInstance(true);
-        new FetchItemsTask().execute();
+        mLastFetchedPage = 0;
+        new FetchItemsTask().execute(mLastFetchedPage);
     }
 
     @Nullable
@@ -42,6 +47,34 @@ public class PhotoGalleryFragment extends Fragment {
 
         mPhotoRecyclerView = (RecyclerView) v.findViewById(R.id.fragment_photo_gallery_recycler_view);
         mPhotoRecyclerView.setLayoutManager(new GridLayoutManager(getActivity(), 3));
+
+        mPhotoRecyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+
+            boolean isScrollingUp = false;
+
+            @Override
+            public void onScrollStateChanged(RecyclerView recyclerView, int newState) {
+                GridLayoutManager layoutManager = (GridLayoutManager) recyclerView.getLayoutManager();
+
+                if (newState == RecyclerView.SCROLL_STATE_IDLE) {
+                    int lastItemPosition = layoutManager.findLastCompletelyVisibleItemPosition();
+                    int totalItemsNumber = layoutManager.getItemCount();
+
+                    if (lastItemPosition == (totalItemsNumber - 1) && isScrollingUp && !mBackgroundIsLoading) {
+                        Log.i(TAG, "is loading a new page, the total items number is " + totalItemsNumber);
+                        Toast.makeText(getActivity(), R.string.toast_loading_new_page, Toast.LENGTH_SHORT).show();
+                        mLastFetchedPage++;
+                        new FetchItemsTask().execute(mLastFetchedPage);
+                    }
+                }
+            }
+
+            @Override
+            public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
+                super.onScrolled(recyclerView, dx, dy);
+                isScrollingUp = (dy > 0);
+            }
+        });
 
         setupAdapter();
 
@@ -94,16 +127,24 @@ public class PhotoGalleryFragment extends Fragment {
         }
     }
 
-    private class FetchItemsTask extends AsyncTask<Void,Void,List<GalleryItem>> {
+    private class FetchItemsTask extends AsyncTask<Integer, Void, List<GalleryItem>> {
         @Override
-        protected List<GalleryItem> doInBackground(Void... params) {
-            return new FlickrFetchr().fetchItems();
+        protected List<GalleryItem> doInBackground(Integer... params) {
+            mBackgroundIsLoading = true;
+            return new FlickrFetchr().fetchItems(params[0]);
         }
 
         @Override
         protected void onPostExecute(List<GalleryItem> items) {
-            mItems = items;
-            setupAdapter();
+            mBackgroundIsLoading = false;
+
+            if (mLastFetchedPage > 1) {
+                mItems.addAll(items);
+                mPhotoRecyclerView.getAdapter().notifyDataSetChanged();
+            } else {
+                mItems = items;
+                setupAdapter();
+            }
         }
     }
 }
