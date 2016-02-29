@@ -44,9 +44,22 @@ public class PhotoGalleryFragment extends Fragment {
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View v = inflater.inflate(R.layout.fragment_photo_gallery, container, false);
+        final int numColumns = getContext().getResources().getInteger(R.integer.grid_columns);
 
         mPhotoRecyclerView = (RecyclerView) v.findViewById(R.id.fragment_photo_gallery_recycler_view);
-        mPhotoRecyclerView.setLayoutManager(new GridLayoutManager(getActivity(), 3));
+        mPhotoRecyclerView.setLayoutManager(new GridLayoutManager(getActivity(), numColumns));
+        /*mPhotoRecyclerView.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+            @Override
+            public void onGlobalLayout() {
+                Point size = new Point();
+                getActivity().getWindowManager().getDefaultDisplay().getSize(size);
+                int newNumColumns = (int) Math.floor(size.x * numColumns / 1440);   // assuming 1440 was the appropriate number for 3 columns
+                if (newNumColumns != numColumns) {
+                    GridLayoutManager layoutManager = (GridLayoutManager) mPhotoRecyclerView.getLayoutManager();
+                    layoutManager.setSpanCount(newNumColumns);
+                }
+            }
+        });*/
 
         mPhotoRecyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
 
