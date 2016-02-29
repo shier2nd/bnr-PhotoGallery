@@ -36,7 +36,7 @@ public class PhotoGalleryFragment extends Fragment {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setRetainInstance(true);
-        mLastFetchedPage = 0;
+        mLastFetchedPage = 1;
         new FetchItemsTask().execute(mLastFetchedPage);
     }
 
@@ -61,7 +61,8 @@ public class PhotoGalleryFragment extends Fragment {
                     int totalItemsNumber = layoutManager.getItemCount();
 
                     if (lastItemPosition == (totalItemsNumber - 1) && isScrollingUp && !mBackgroundIsLoading) {
-                        Log.i(TAG, "is loading a new page, the total items number is " + totalItemsNumber);
+                        Log.i(TAG, "is loading page" + (mLastFetchedPage + 1) +
+                                ", the current total items number is " + totalItemsNumber);
                         Toast.makeText(getActivity(), R.string.toast_loading_new_page, Toast.LENGTH_SHORT).show();
                         mLastFetchedPage++;
                         new FetchItemsTask().execute(mLastFetchedPage);
