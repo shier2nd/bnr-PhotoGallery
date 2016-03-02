@@ -50,6 +50,7 @@ public class PhotoGalleryFragment extends Fragment {
                 new ThumbnailDownloader.ThumbnailDownloaderListener<PhotoHolder>() {
                     @Override
                     public void onThumbnailDownloader(PhotoHolder photoHolder, Bitmap bitmap) {
+                        if (!isAdded()) return;
                         Drawable drawable = new BitmapDrawable(getResources(), bitmap);
                         photoHolder.bindDrawable(drawable);
                     }
