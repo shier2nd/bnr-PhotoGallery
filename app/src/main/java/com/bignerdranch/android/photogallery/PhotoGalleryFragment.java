@@ -52,6 +52,8 @@ public class PhotoGalleryFragment extends Fragment {
 //        mLastFetchedPage = 1;
 //        new FetchItemsTask().execute(mLastFetchedPage);
         updateItems();
+
+//        PollService.setServiceAlarm(getActivity(), true);
     }
 
     @Nullable
@@ -62,18 +64,6 @@ public class PhotoGalleryFragment extends Fragment {
 
         mPhotoRecyclerView = (RecyclerView) v.findViewById(R.id.fragment_photo_gallery_recycler_view);
         mPhotoRecyclerView.setLayoutManager(new GridLayoutManager(getActivity(), numColumns));
-        /*mPhotoRecyclerView.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
-            @Override
-            public void onGlobalLayout() {
-                Point size = new Point();
-                getActivity().getWindowManager().getDefaultDisplay().getSize(size);
-                int newNumColumns = (int) Math.floor(size.x * numColumns / 1440);   // assuming 1440 was the appropriate number for 3 columns
-                if (newNumColumns != numColumns) {
-                    GridLayoutManager layoutManager = (GridLayoutManager) mPhotoRecyclerView.getLayoutManager();
-                    layoutManager.setSpanCount(newNumColumns);
-                }
-            }
-        });*/
 
         /*mPhotoRecyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
 
@@ -153,6 +143,13 @@ public class PhotoGalleryFragment extends Fragment {
                 mSearchView.setQuery(query, false);
             }
         });
+
+        MenuItem toggleItem = menu.findItem(R.id.menu_item_toggle_polling);
+        if (PollService.isServiceAlarmOn(getActivity())) {
+            toggleItem.setTitle(R.string.stop_polling);
+        } else {
+            toggleItem.setTitle(R.string.start_polling);
+        }
     }
 
     @Override
@@ -160,13 +157,17 @@ public class PhotoGalleryFragment extends Fragment {
         switch (item.getItemId()) {
             case R.id.menu_item_clear:
                 QueryPreferences.setStoredQuery(getActivity(), null);
-
+                // if SearchView is not iconified, collapse the SearchView
                 if (!mSearchView.isIconified()) {
-                    Log.d(TAG, "SearchView is not iconified, so collapse the SearchView");
                     collapseSearchView(getActivity());
                 }
-
                 updateItems();
+                return true;
+            case R.id.menu_item_toggle_polling:
+                boolean shouldStartAlarm = !PollService.isServiceAlarmOn(getActivity());
+                PollService.setServiceAlarm(getActivity(), shouldStartAlarm);
+                // tell PhotoGalleryActivity to update its toolbar options menu
+                getActivity().invalidateOptionsMenu();
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
