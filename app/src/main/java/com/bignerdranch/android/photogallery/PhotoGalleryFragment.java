@@ -1,8 +1,13 @@
 package com.bignerdranch.android.photogallery;
 
+import android.annotation.TargetApi;
 import android.app.Activity;
+import android.app.job.JobInfo;
+import android.app.job.JobScheduler;
+import android.content.ComponentName;
 import android.content.Context;
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
@@ -35,8 +40,6 @@ public class PhotoGalleryFragment extends Fragment {
 
     private RecyclerView mPhotoRecyclerView;
     private List<GalleryItem> mItems = new ArrayList<>();
-//    private boolean mBackgroundIsLoading;
-//    private int mLastFetchedPage;
     private SearchView mSearchView;
     private ProgressBar mProgressBar;
 
@@ -49,11 +52,7 @@ public class PhotoGalleryFragment extends Fragment {
         super.onCreate(savedInstanceState);
         setRetainInstance(true);
         setHasOptionsMenu(true);
-//        mLastFetchedPage = 1;
-//        new FetchItemsTask().execute(mLastFetchedPage);
         updateItems();
-
-//        PollService.setServiceAlarm(getActivity(), true);
     }
 
     @Nullable
@@ -64,35 +63,6 @@ public class PhotoGalleryFragment extends Fragment {
 
         mPhotoRecyclerView = (RecyclerView) v.findViewById(R.id.fragment_photo_gallery_recycler_view);
         mPhotoRecyclerView.setLayoutManager(new GridLayoutManager(getActivity(), numColumns));
-
-        /*mPhotoRecyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
-
-            boolean isScrollingUp = false;
-
-            @Override
-            public void onScrollStateChanged(RecyclerView recyclerView, int newState) {
-                GridLayoutManager layoutManager = (GridLayoutManager) recyclerView.getLayoutManager();
-
-                if (newState == RecyclerView.SCROLL_STATE_IDLE) {
-                    int lastItemPosition = layoutManager.findLastCompletelyVisibleItemPosition();
-                    int totalItemsNumber = layoutManager.getItemCount();
-
-                    if (lastItemPosition == (totalItemsNumber - 1) && isScrollingUp && !mBackgroundIsLoading) {
-                        Log.i(TAG, "is loading page" + (mLastFetchedPage + 1) +
-                                ", the current total items number is " + totalItemsNumber);
-                        Toast.makeText(getActivity(), R.string.toast_loading_new_page, Toast.LENGTH_SHORT).show();
-                        mLastFetchedPage++;
-                        new FetchItemsTask().execute(mLastFetchedPage);
-                    }
-                }
-            }
-
-            @Override
-            public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
-                super.onScrolled(recyclerView, dx, dy);
-                isScrollingUp = (dy > 0);
-            }
-        });*/
 
         mProgressBar = (ProgressBar) v.findViewById(R.id.fragment_progress_bar);
         showProgressBar(true);
@@ -145,11 +115,21 @@ public class PhotoGalleryFragment extends Fragment {
         });
 
         MenuItem toggleItem = menu.findItem(R.id.menu_item_toggle_polling);
-        if (PollService.isServiceAlarmOn(getActivity())) {
-            toggleItem.setTitle(R.string.stop_polling);
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+            if (PollService.isServiceAlarmOn(getActivity())) {
+                toggleItem.setTitle(R.string.stop_polling);
+            } else {
+                toggleItem.setTitle(R.string.start_polling);
+            }
         } else {
-            toggleItem.setTitle(R.string.start_polling);
+            final int JOB_ID = 1;
+            if (isBeenScheduled(JOB_ID)) {
+                toggleItem.setTitle(R.string.stop_polling);
+            } else {
+                toggleItem.setTitle(R.string.start_polling);
+            }
         }
+
     }
 
     @Override
@@ -164,14 +144,47 @@ public class PhotoGalleryFragment extends Fragment {
                 updateItems();
                 return true;
             case R.id.menu_item_toggle_polling:
-                boolean shouldStartAlarm = !PollService.isServiceAlarmOn(getActivity());
-                PollService.setServiceAlarm(getActivity(), shouldStartAlarm);
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP) {
+                    boolean shouldStartAlarm = !PollService.isServiceAlarmOn(getActivity());
+                    PollService.setServiceAlarm(getActivity(), shouldStartAlarm);
+                } else {
+                    JobScheduler scheduler = (JobScheduler)
+                            getActivity().getSystemService(Context.JOB_SCHEDULER_SERVICE);
+                    final int JOB_ID = 1;
+
+                    if (isBeenScheduled(JOB_ID)){
+                        Log.i(TAG, "scheduler.cancel(JOB_ID)");
+                        scheduler.cancel(JOB_ID);
+                    } else{
+                        Log.i(TAG, "scheduler.schedule(jobInfo)");
+                        JobInfo jobInfo = new JobInfo.Builder(
+                                JOB_ID, new ComponentName(getActivity(), PollJobService.class))
+                                .setRequiredNetworkType(JobInfo.NETWORK_TYPE_UNMETERED)
+                                .setPeriodic(1000 * 60)
+                                .setPersisted(true)
+                                .build();
+                        scheduler.schedule(jobInfo);
+                    }
+                }
                 // tell PhotoGalleryActivity to update its toolbar options menu
                 getActivity().invalidateOptionsMenu();
                 return true;
             default:
                 return super.onOptionsItemSelected(item);
         }
+    }
+
+    @TargetApi(21)
+    private boolean isBeenScheduled(int JOB_ID){
+        JobScheduler scheduler = (JobScheduler)
+                getActivity().getSystemService(Context.JOB_SCHEDULER_SERVICE);
+        boolean hasBeenScheduled = false;
+        for (JobInfo jobInfo : scheduler.getAllPendingJobs()){
+            if (jobInfo.getId() == JOB_ID) {
+                hasBeenScheduled = true;
+            }
+        }
+        return hasBeenScheduled;
     }
 
     private void updateItems() {
@@ -290,9 +303,6 @@ public class PhotoGalleryFragment extends Fragment {
 
         @Override
         protected List<GalleryItem> doInBackground(Integer... params) {
-            /*mBackgroundIsLoading = true;
-            return new FlickrFetchr().fetchItems(params[0]);*/
-
             if (mQuery == null) {
                 return new FlickrFetchr().fetchRecentPhotos();
             } else {
@@ -302,15 +312,6 @@ public class PhotoGalleryFragment extends Fragment {
 
         @Override
         protected void onPostExecute(List<GalleryItem> items) {
-            /*mBackgroundIsLoading = false;
-
-            if (mLastFetchedPage > 1) {
-                mItems.addAll(items);
-                mPhotoRecyclerView.getAdapter().notifyDataSetChanged();
-            } else {
-                mItems = items;
-                setupAdapter();
-            }*/
             mItems = items;
             setupAdapter();
             mGalleryFragment.showProgressBar(false);
