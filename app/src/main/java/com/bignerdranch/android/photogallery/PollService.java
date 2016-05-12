@@ -21,8 +21,8 @@ import java.util.List;
 public class PollService extends IntentService {
     private static final String TAG = "PollService";
 
-    private static final int POLL_INTERVAL = 1000 * 6; // 6 seconds
-//    private static final long POLL_INTERVAL = AlarmManager.INTERVAL_FIFTEEN_MINUTES;
+//    private static final int POLL_INTERVAL = 1000 * 6; // 6 seconds
+    private static final long POLL_INTERVAL = AlarmManager.INTERVAL_FIFTEEN_MINUTES;
 
     public static final String ACTION_SHOW_NOTIFICATION =
             "com.bignerdranch.android.photogallery.SHOW_NOTIFICATION";
