@@ -37,6 +37,7 @@ public class PhotoGalleryFragment extends VisibleFragment {
     private List<GalleryItem> mItems = new ArrayList<>();
     private SearchView mSearchView;
     private ProgressBar mProgressBar;
+    private boolean mShouldShowProgressBar;
 
     public static PhotoGalleryFragment newInstance() {
         return new PhotoGalleryFragment();
@@ -47,6 +48,7 @@ public class PhotoGalleryFragment extends VisibleFragment {
         super.onCreate(savedInstanceState);
         setRetainInstance(true);
         setHasOptionsMenu(true);
+        mShouldShowProgressBar = true;
         updateItems();
     }
 
@@ -60,11 +62,19 @@ public class PhotoGalleryFragment extends VisibleFragment {
         mPhotoRecyclerView.setLayoutManager(new GridLayoutManager(getActivity(), numColumns));
 
         mProgressBar = (ProgressBar) v.findViewById(R.id.fragment_progress_bar);
-        showProgressBar(true);
+        showProgressBar(mShouldShowProgressBar);
 
         setupAdapter();
 
         return v;
+    }
+
+    @Override
+    public void onDestroyView() {
+        super.onDestroyView();
+        // 由于调用了setRetainInstance(true)方法, 当屏幕旋转时,
+        // 不会重新调用onCreate()方法, 所以不应显示ProgressBar
+        mShouldShowProgressBar = false;
     }
 
     @Override
@@ -278,7 +288,9 @@ public class PhotoGalleryFragment extends VisibleFragment {
         protected void onPostExecute(List<GalleryItem> items) {
             mItems = items;
             setupAdapter();
-            mGalleryFragment.showProgressBar(false);
+            if (mGalleryFragment.isResumed()) {
+                mGalleryFragment.showProgressBar(false);
+            }
         }
     }
 }
