@@ -18,7 +18,8 @@
         android:theme="@style/AppTheme">
         <activity
             android:name=".PhotoGalleryActivity"
-            android:label="@string/app_name">
+            android:label="@string/app_name"
+            android:launchMode="singleTop">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
 
@@ -26,7 +27,8 @@
             </intent-filter>
         </activity>
         <activity android:name=".PhotoPageActivity"
-            android:configChanges="keyboardHidden|orientation|screenSize" />
+            android:configChanges="keyboardHidden|orientation|screenSize"
+            android:parentActivityName=".PhotoGalleryActivity" />
 
         <service android:name=".PollService" />
 

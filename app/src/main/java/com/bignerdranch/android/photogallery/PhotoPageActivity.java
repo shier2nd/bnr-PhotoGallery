@@ -3,12 +3,13 @@ package com.bignerdranch.android.photogallery;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
-import android.support.v4.app.Fragment;
 
 /**
  * Created by Woodinner on 5/12/16.
  */
 public class PhotoPageActivity extends SingleFragmentActivity {
+
+    private PhotoPageFragment mFragment;
 
     public static Intent newIntent(Context context, Uri photoPageUri) {
         Intent i = new Intent(context, PhotoPageActivity.class);
@@ -17,7 +18,16 @@ public class PhotoPageActivity extends SingleFragmentActivity {
     }
 
     @Override
-    protected Fragment createFragment() {
-        return PhotoPageFragment.newInstance(getIntent().getData());
+    protected PhotoPageFragment createFragment() {
+        mFragment = PhotoPageFragment.newInstance(getIntent().getData());
+        return mFragment;
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (mFragment.onBackPressed()) {
+            return;
+        }
+        super.onBackPressed();
     }
 }
